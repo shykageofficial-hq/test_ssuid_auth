@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify - Web Player: Music for everyone</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root { --spotify-green: #1ED760; --bg-black: #121212; --card-black: #181818; }
+        body { background: linear-gradient(to bottom, #222, #000); color: white; font-family: 'Inter', sans-serif; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .login-box { background-color: var(--bg-black); width: 100%; max-width: 450px; padding: 40px; border-radius: 8px; text-align: center; box-shadow: 0 10px 50px rgba(0,0,0,0.5); }
+        .spotify-logo { width: 120px; margin-bottom: 30px; }
+        h1 { font-size: 28px; font-weight: 900; margin-bottom: 40px; }
+        .btn-shy { background-color: transparent; color: white; border: 1px solid #727272; border-radius: 500px; padding: 14px; font-size: 14px; font-weight: 700; width: 100%; display: flex; align-items: center; justify-content: center; gap: 12px; cursor: pointer; transition: 0.2s; margin-bottom: 12px; }
+        .btn-shy:hover { border-color: white; background-color: rgba(255,255,255,0.05); }
+        .shy-logo-icon { width: 20px; height: auto; }
+        .social-btn { background: transparent; color: white; border: 1px solid #727272; border-radius: 500px; padding: 14px; width: 100%; font-weight: 700; margin-bottom: 12px; cursor: pointer; }
+        .divider { height: 1px; background: #292929; margin: 30px 0; }
+        input { width: 100%; background: #121212; border: 1px solid #727272; border-radius: 4px; padding: 14px; color: white; margin-bottom: 15px; box-sizing: border-box; }
+        .btn-login { background-color: var(--spotify-green); color: black; border: none; border-radius: 500px; padding: 14px; width: 100%; font-weight: 700; cursor: pointer; }
+        
+        /* Exchange Status Styling */
+        #status-msg { font-size: 12px; color: #1ED760; margin-top: 10px; display: none; }
+        #auth-result { display: none; background: #181818; border: 1px solid var(--spotify-green); padding: 30px; border-radius: 12px; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <div class="login-box" id="main-ui">
+        <img src="https://storage.googleapis.com/pr-newsroom-wp/1/2018/11/Spotify_Logo_RGB_White.png" class="spotify-logo">
+        <h1>To continue, log in to Spotify.</h1>
+
+        <button class="btn-shy" id="shy-btn" onclick="startShyAuth()">
+            <img src="https://shyformation.pages.dev/assets/logo.png" class="shy-logo-icon">
+            Continue with ShyFormation
+        </button>
+        <div id="status-msg">Exchanging code for identity...</div>
+
+        <button class="social-btn">Continue with Google</button>
+        <button class="social-btn">Continue with Facebook</button>
+        <div class="divider"></div>
+        <input type="text" placeholder="Email address or username">
+        <input type="password" placeholder="Password">
+        <button class="btn-login">Log In</button>
+    </div>
+
+    <!-- Success Dashboard -->
+    <div class="login-box" id="auth-result">
+        <div style="font-size: 50px; margin-bottom: 20px;">🛡️</div>
+        <h2 style="color: var(--spotify-green);">SSUID Handshake Verified</h2>
+        <p style="color: #888;">Professional human-only authentication successful.</p>
+        <div style="background:#000; padding:20px; border-radius:8px; margin: 20px 0; border: 1px solid #222;">
+            <span id="user-name" style="font-size: 20px; font-weight: 800; color: #fff;"></span><br>
+            <small id="user-ssuid" style="color: #555; font-family: monospace; letter-spacing: 2px;"></small>
+        </div>
+        <button class="btn-login" onclick="location.reload()">Return to Spotify</button>
+    </div>
+
+    <!-- LOAD LIVE SDK -->
+    <script src="https://shyformation-backend.onrender.com/sdk.js"></script>
+
+    <script>
+        // 1. Initialize with your Spotify Test Public Key
+        const MY_API_KEY = "SHY-f0a2e111c2eb2b2ae25f16d39c0be3c5";
+        
+        // DHYAN DE: Real life mein ye Secret Key hamesha Backend par hoti hai. 
+        // Demo ke liye hum yahan use kar rahe hain.
+        const MY_CLIENT_SECRET = "SEC-662c4229ba391efd19d1f9ea94f796fee22ac29e785b2d3e"; 
+
+        ShyAuth.init(MY_API_KEY);
+
+        async function startShyAuth() {
+            // STEP A: Open Popup and get temporary code
+            ShyAuth.openLogin(async function(response) {
+                if (response.status === 'success') {
+                    console.log("Code Received:", response.code);
+                    
+                    // UI Feedback
+                    document.getElementById('shy-btn').style.opacity = "0.5";
+                    document.getElementById('status-msg').style.display = "block";
+
+                    // STEP B: Exchange Code for Real Data (Server-to-Server Simulation)
+                    try {
+                        const exchangeRes = await fetch("https://shyformation-backend.onrender.com/api/auth/token-exchange", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                code: response.code,
+                                apiKey: MY_API_KEY,
+                                clientSecret: MY_CLIENT_SECRET
+                            })
+                        });
+
+                        const finalData = await exchangeRes.json();
+
+                        if (exchangeRes.ok) {
+                            showSuccess(finalData.user);
+                        } else {
+                            alert("Exchange Failed: " + finalData.message);
+                        }
+                    } catch (e) {
+                        alert("Could not connect to ShyFormation backend.");
+                    }
+                }
+            });
+        }
+
+        function showSuccess(user) {
+            document.getElementById('main-ui').style.display = 'none';
+            document.getElementById('auth-result').style.display = 'block';
+            document.getElementById('user-name').innerText = user.full_name;
+            document.getElementById('user-ssuid').innerText = user.ssuid;
+        }
+    </script>
+</body>
+</html>
